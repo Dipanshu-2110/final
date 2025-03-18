@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Role Based Dashboard</title>
+    <script src="https://apis.mapmyindia.com/advancedmaps/v1/565c1e6bc66610c192e80079ec366ca6/map_load?v=1.5"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background: linear-gradient(135deg, #e0f7fa, #b2ebf2); }
+        .container { max-width: 600px; margin: 50px auto; padding: 30px; background-color: #fff; box-shadow: 0 8px 24px rgba(0,0,0,0.1); border-radius: 12px; position: relative; }
+        h1 { text-align: center; color: #0277bd; margin-bottom: 30px; }
+        select, button, input { width: 100%; padding: 15px; margin: 10px 0; border: 1px solid #90caf9; border-radius: 6px; }
+        button { background-color: #0288d1; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #0277bd; }
+        .dashboard { padding: 20px; border: 1px solid #90caf9; border-radius: 8px; margin-top: 20px; background-color: #e3f2fd; }
+        .hidden { display: none; }
+        .toggle-icon { position: absolute; top: 20px; right: 20px; cursor: pointer; font-size: 24px; }
+        #map { height: 400px; width: 100%; border-radius: 10px; margin-top: 20px; }
+        #location-info, #assigned-location, #status-message { margin-top: 15px; padding: 10px 15px; border-radius: 5px; text-align: center; font-weight: bold; }
+        .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        
+        /* Dark Mode */
+        .dark-mode { background: linear-gradient(135deg, #0d47a1, #1565c0); color: #e3f2fd; }
+        .dark-mode .container { background-color: #1e1e1e; color: #e3f2fd; }
+        .dark-mode .dashboard { background-color: #283593; border-color: #5c6bc0; }
+        .dark-mode #location-info, .dark-mode #assigned-location, .dark-mode #status-message { background-color: #3949ab; color: #e3f2fd; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Company Role Dashboard</h1>
+        <span id="toggleIcon" class="toggle-icon" onclick="toggleDarkMode()">🌙</span>
+        <select id="roleSelector">
+            <option value="">Select Role</option>
+            <option value="admin">Admin</option>
+            <option value="employee">Employee</option>
+        </select>
+        <button onclick="showDashboard()">Enter Dashboard</button>
+
+        <!-- Admin Dashboard -->
+        <div id="adminDashboard" class="dashboard hidden">
+            <h2>Admin Panel</h2>
+            <button onclick="showManageEmployee()">Manage Employees</button>
+            <button>View Reports</button>
+
+            <div id="manageEmployeeSection" class="hidden">
+                <h3>Assign Remote Work Location</h3>
+                <input type="email" id="employeeEmail" placeholder="Enter Employee Email">
+                <select id="locationDropdown">
+                    <option value="">Select Location</option>
+                </select>
+                <button onclick="assignLocation()">Submit</button>
+                <p id="assignmentStatus"></p>
+            </div>
+        </div>
+
+        <!-- Employee Dashboard -->
+        <div id="employeeDashboard" class="dashboard hidden">
+            <h2>Employee Panel</h2>
+            <input type="email" id="employeeLoginEmail" placeholder="Enter Your Email">
+            <button onclick="verifyEmployee()">Login</button>
+            <button onclick="checkLocation()">Check Location</button>
+            <p id="loadingMessage" class="hidden"><span class="spinner"></span> Fetching Location...</p>
+            <p id="assigned-location">Assigned Location: Not Available</p>
+            <p id="location-info">Current Location: Not Available</p>
+            <p id="status-message"></p>
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <script>
+        const employeeLocations = {};
+        const officeWorkers = ["office1@example.com", "office2@example.com"];
+
+        const locations = [
+            { name: "New Delhi Office", lat: 28.6139, lon: 77.2090 },
+            { name: "Mumbai Office", lat: 19.0760, lon: 72.8777 },
+            { name: "Bangalore Office", lat: 12.9716, lon: 77.5946 },
+            { name: "Hyderabad Office", lat: 17.3850, lon: 78.4867 }
+        ];
+
+        function showDashboard() {
+            document.getElementById('adminDashboard').classList.add('hidden');
+            document.getElementById('employeeDashboard').classList.add('hidden');
+
+            const role = document.getElementById('roleSelector').value;
+            if (role === 'admin') document.getElementById('adminDashboard').classList.remove('hidden');
+            else if (role === 'employee') document.getElementById('employeeDashboard').classList.remove('hidden');
+        }
+
+        function checkLocation() {
+            document.getElementById('loadingMessage').classList.remove('hidden');
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    document.getElementById('loadingMessage').classList.add('hidden');
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+
+                    new mappls.Map('map', { center: [lat, lon], zoom: 14 });
+
+                    document.getElementById('location-info').textContent = `Current Location: Lat ${lat}, Lon ${lon}`;
+                }, () => {
+                    document.getElementById('loadingMessage').classList.add('hidden');
+                    document.getElementById('location-info').textContent = "❌ Location access denied!";
+                });
+            } else {
+                document.getElementById('loadingMessage').classList.add('hidden');
+                document.getElementById('location-info').textContent = "❌ Geolocation not supported!";
+            }
+        }
+
+        function showManageEmployee() {
+            document.getElementById('manageEmployeeSection').classList.toggle('hidden');
+        }
+
+        function populateLocationDropdown() {
+            const dropdown = document.getElementById('locationDropdown');
+            locations.forEach(location => {
+                const option = document.createElement('option');
+                option.value = JSON.stringify(location);
+                option.textContent = location.name;
+                dropdown.appendChild(option);
+            });
+        }
+
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+        }
+
+        window.onload = populateLocationDropdown;
+    </script>
+</body>
+</html>
